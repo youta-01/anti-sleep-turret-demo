@@ -1,6 +1,6 @@
 # Anti-Sleep Turret (Ast)
 
-CG制作・作業時間を阻害していた日中の寝落ちに対し、眠気リスク検知から入浴介入までを状態遷移として設計した個人用Windowsプロトタイプ。
+CG制作中の日中の寝落ちを作者本人の設計課題とし、眠気リスク検知から入浴介入までを状態遷移として構成した個人用Windowsプロトタイプ。
 
 ![Ast production prototype demonstration](docs/images/production-demo.gif)
 
@@ -62,6 +62,8 @@ Ast is a sanitized, dependency-free public simulation of an N=1 personal system 
 - [公開マニフェスト](PUBLIC_RELEASE_MANIFEST.md)
 
 ## 検証
+
+公開CIテスト: **54 passed**
 
 ```powershell
 python -m compileall .

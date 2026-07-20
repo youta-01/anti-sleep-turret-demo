@@ -11,7 +11,7 @@
 
 | Phase | 主題 | 人間が行った中心判断 |
 | ---: | --- | --- |
-| 1 | CLL bottleneck discovery | 約4か月のCLLから、CG制作時間を失わせる日中の寝落ちを対象に選んだ |
+| 1 | CLL problem selection | 約4か月のCLLを振り返り、CG制作中の日中の寝落ちを設計対象に選んだ |
 | 2 | Graded warnings | 即時強制だけでなくLv1・Lv2の段階を設けた |
 | 3 | Bath intervention | 通常アラームではなく入浴を中心介入にした |
 | 4 | Return / Recovery experiment and retirement | 試行後、現行標準フローから外した |

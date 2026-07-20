@@ -11,7 +11,7 @@ flowchart LR
     C --> D["Repetition Guard"]
     D --> E["State Machine"]
     E --> F["UI / Alarm / Bath QR / Riz"]
-    F --> G["Event Log / Health / Watchdog"]
+    F --> G["Event Log / Watchdog"]
 
     T["Technical Safety Cutoff<br/>outside the State Machine"] -. "external safety boundary" .-> E
     T -.-> F

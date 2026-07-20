@@ -2,10 +2,10 @@
 
 個別フェーズの正確な日付は既知ではありません。開発は2026-05-31に始まり、2026-06-02に実運用を開始しました。MVPは約3日、その後2026-07-20時点まで約50日改善しています。
 
-## 1. CLL bottleneck discovery
+## 1. CLL problem selection
 
-- **Observed problem:** 約4か月のCLLを通じ、日中の寝落ちがCG制作時間を失わせるボトルネックとして見つかった。
-- **Human decision:** 作者本人を対象に、CG制作へ使える時間を守る問題として定義した。
+- **Observed context:** 約4か月のCLLを振り返り、CG制作中の日中の寝落ちを個人用システムの設計対象として選んだ。
+- **Human decision:** 作者本人を対象に、検知から介入までを扱う問題として定義した。
 - **Codex-assisted implementation:** 観察を実装可能な入力、状態、イベントの骨組みに落とした。
 - **Validation:** CLLの振り返りと本人の実運用目的が一致するかを確認した。
 - **Remaining limitation:** 後ろ向きのN=1観察であり、原因や一般性を示さない。
@@ -20,11 +20,11 @@
 
 ## 3. Bath intervention
 
-- **Observed problem:** 通常のアラームは止められても、その後の行動変化につながらない場合があった。
+- **Design gap:** アラームだけでは、入浴という介入の開始と完了を状態として扱えない。
 - **Human decision:** 入浴を中心介入にし、開始と完了を明示的に扱うことを選んだ。
 - **Codex-assisted implementation:** BATH_REQUIRED、BATH_STARTED、BATH_TIMEOUTと時間ポリシーを実装した。
 - **Validation:** 早すぎる完了、正常完了、タイムアウトをFake Clockでテストした。
-- **Remaining limitation:** 記録された入浴行動は因果的有効性や効果量を証明しない。
+- **Remaining limitation:** 公開版は合成イベントの遷移検証であり、行動上の効果を測定しない。
 
 ## 4. Return / Recovery experiment and retirement
 
