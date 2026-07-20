@@ -71,7 +71,8 @@ Ast is a sanitized public simulation of an N=1 Windows prototype that connects d
 
 ## 検証
 
-ローカルテスト: **54 passed**  
+ローカルテスト: **71 passed**
+
 GitHub ActionsはUbuntu / Windows向けに設定済みです。最新状況は上部のCIバッジから確認できます。
 
 ```powershell

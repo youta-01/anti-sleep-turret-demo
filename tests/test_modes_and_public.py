@@ -64,3 +64,57 @@ def test_public_ui_has_no_retired_controls():
     source = (Path(__file__).parents[1] / "src" / "ast_demo" / "ui.py").read_text(encoding="utf-8")
     forbidden = ["Return" + " to PC", "Resume" + " AST", "Hide" + " AST for Recovery"]
     assert all(label not in source for label in forbidden)
+
+
+def test_safe_mode_ignores_lv3_sensor_input():
+    app = AstDemo(); assert app.start_call_safe_mode()
+    app.monitor(SensorSnapshot(eye_closed_seconds=90))
+    assert app.status.state == State.SAFE_MODE
+    assert app.guard.episodes == []
+
+
+def test_daily_rest_ignores_lv3_sensor_input():
+    app = AstDemo(); assert app.start_daily_rest()
+    app.monitor(SensorSnapshot(eye_closed_seconds=90))
+    assert app.status.state == State.DAILY_REST_MODE
+    assert app.guard.episodes == []
+
+
+def test_emergency_safe_mode_ignores_input_until_it_ends():
+    app = AstDemo(); app.start_emergency()
+    app.monitor(SensorSnapshot(eye_closed_seconds=90))
+    assert app.status.state == State.EMERGENCY_SAFE_MODE
+    assert app.guard.episodes == []
+    assert app.end_emergency()
+    assert app.status.state == State.BATH_REQUIRED
+
+
+def test_bath_required_does_not_count_risk_episodes():
+    app = AstDemo(); app.require_bath(InterventionSource.SLEEP_DETECTION, "test")
+    app.monitor(SensorSnapshot(eye_closed_seconds=45))
+    assert app.status.state == State.BATH_REQUIRED
+    assert app.guard.episodes == []
+
+
+def test_call_safe_mode_cannot_bypass_bath_required():
+    app = AstDemo(); app.require_bath(InterventionSource.SLEEP_DETECTION, "test")
+    assert not app.start_call_safe_mode()
+    assert app.status.state == State.BATH_REQUIRED
+
+
+def test_call_safe_mode_cannot_bypass_bath_started():
+    app = AstDemo(); app.require_bath(InterventionSource.SLEEP_DETECTION, "test"); app.start_qr()
+    assert not app.start_call_safe_mode()
+    assert app.status.state == State.BATH_STARTED
+
+
+def test_exam_mode_cannot_start_during_bath():
+    app = AstDemo(); app.require_bath(InterventionSource.SLEEP_DETECTION, "test"); app.start_qr()
+    assert not app.start_exam()
+    assert app.status.state == State.BATH_STARTED
+
+
+def test_exam_mode_can_start_from_monitoring():
+    app = AstDemo()
+    assert app.start_exam()
+    assert app.status.state == State.EXAM_MODE

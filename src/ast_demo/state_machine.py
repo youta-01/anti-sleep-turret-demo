@@ -9,6 +9,16 @@ from .risk_episode_guard import RiskEpisodeGuard
 from .riz_flow import CHARGER_START_STABLE_SECONDS, COMPLETION_HOLD_SECONDS
 
 
+ACTIVE_DETECTION_STATES = {
+    State.MONITORING,
+    State.LV1_WARNING,
+    State.LV2_WARNING,
+}
+
+CALL_SAFE_MODE_ENTRY_STATES = ACTIVE_DETECTION_STATES
+EXAM_MODE_ENTRY_STATES = ACTIVE_DETECTION_STATES | {State.SAFE_MODE}
+
+
 class AstDemo:
     def __init__(self, clock: FakeClock | None = None) -> None:
         self.clock = clock or FakeClock()
@@ -23,6 +33,8 @@ class AstDemo:
         self.status.history.append(Transition(self.clock.now(), old, state, reason))
 
     def reset(self) -> None:
+        self._clear_bath_context()
+        self._clear_riz_context()
         self.status = Status()
         self.sensors = SensorSnapshot()
         self.guard = RiskEpisodeGuard()
@@ -30,6 +42,8 @@ class AstDemo:
 
     def monitor(self, snapshot: SensorSnapshot) -> State:
         self.sensors = snapshot
+        if self.status.state not in ACTIVE_DETECTION_STATES:
+            return self.status.state
         result = calculate_risk(snapshot)
         self.status.risk, self.status.risk_reason = result.value, result.reason
         if self.status.state == State.EXAM_MODE or self.clock.now() < self.status.grace_until:
@@ -49,14 +63,14 @@ class AstDemo:
         return self.status.state
 
     def require_bath(self, source: InterventionSource, reason: str) -> None:
+        self._clear_bath_context()
+        self._clear_riz_context()
         self.status.intervention_source = source
         self.status.riz_active = source == InterventionSource.RIZ
-        self.status.bath_started_at = None
-        self.status.start_qr_seen = False
-        self.status.completion_scanned_at = None
         self._transition(State.BATH_REQUIRED, reason)
 
     def phone_start_riz(self) -> None:
+        self.status.grace_until = 0.0
         self.require_bath(InterventionSource.RIZ, "Riz phone start")
 
     def start_qr(self) -> bool:
@@ -75,9 +89,9 @@ class AstDemo:
     def start_manual_bath(self) -> bool:
         if self.status.state != State.MONITORING:
             return False
+        self._clear_bath_context()
+        self._clear_riz_context()
         self.status.intervention_source = InterventionSource.MANUAL
-        self.status.riz_active = False
-        self.status.start_qr_seen = False
         self._start_bath()
         return True
 
@@ -86,11 +100,20 @@ class AstDemo:
             return
         now = self.clock.now()
         if not connected:
+            self.status.charger_connected = False
+            self.status.charger_connected_since = None
             self._invalidate_bath("charger disconnected")
             return
-        if self.status.charger_connected_since is None:
+        if not self.status.charger_connected:
+            self.status.charger_connected = True
             self.status.charger_connected_since = now
-        if self.status.state == State.BATH_REQUIRED and self.status.start_qr_seen and now - self.status.charger_connected_since >= CHARGER_START_STABLE_SECONDS:
+        if (
+            self.status.state in {State.BATH_REQUIRED, State.BATH_TIMEOUT}
+            and self.status.start_qr_seen
+            and self.status.charger_connected
+            and self.status.charger_connected_since is not None
+            and now - self.status.charger_connected_since >= CHARGER_START_STABLE_SECONDS
+        ):
             self._start_bath()
 
     def presence(self, face_visible: bool = False, sufficient_motion: bool = False) -> bool:
@@ -107,6 +130,7 @@ class AstDemo:
     def _invalidate_bath(self, reason: str) -> None:
         self.status.bath_started_at = None
         self.status.start_qr_seen = False
+        self.status.charger_connected = False
         self.status.charger_connected_since = None
         self.status.completion_scanned_at = None
         self._transition(State.BATH_REQUIRED, reason)
@@ -117,8 +141,7 @@ class AstDemo:
         policy = MANUAL_BATH if self.status.intervention_source == InterventionSource.MANUAL else FORCED_BATH
         result = completion_result(self.clock.now() - self.status.bath_started_at, policy)
         if result == "timeout":
-            self.status.start_qr_seen = False
-            self._transition(State.BATH_TIMEOUT, "bath timeout")
+            self._timeout_bath()
         elif result == "complete" and self.status.riz_active:
             self.status.completion_scanned_at = self.clock.now()
             result = "hold"
@@ -131,22 +154,44 @@ class AstDemo:
         if self.status.state == State.BATH_STARTED and self.status.bath_started_at is not None:
             policy = MANUAL_BATH if self.status.intervention_source == InterventionSource.MANUAL else FORCED_BATH
             if now - self.status.bath_started_at > policy.maximum_seconds:
-                self.status.start_qr_seen = False
-                self._transition(State.BATH_TIMEOUT, "bath timeout")
+                self._timeout_bath()
         if self.status.riz_active and self.status.completion_scanned_at is not None:
-            if self.status.charger_connected_since is not None and now - self.status.completion_scanned_at >= COMPLETION_HOLD_SECONDS:
+            if (
+                self.status.charger_connected
+                and self.status.charger_connected_since is not None
+                and now - self.status.completion_scanned_at >= COMPLETION_HOLD_SECONDS
+            ):
                 self._finish_bath()
         if self.status.state == State.DAILY_REST_MODE and self.status.mode_ends_at is not None and now >= self.status.mode_ends_at:
             self._transition(State.MONITORING, "daily rest ended")
 
     def _finish_bath(self) -> None:
         self.status.grace_until = self.clock.now() + POST_COMPLETION_GRACE_SECONDS
-        self.status.riz_active = False
+        self._clear_bath_context()
+        self._clear_riz_context()
+        self._transition(State.MONITORING, "bath complete")
+
+    def _timeout_bath(self) -> None:
+        if self.status.intervention_source == InterventionSource.MANUAL:
+            self._clear_bath_context()
+            self._clear_riz_context()
+            self._transition(State.MONITORING, "manual bath timed out")
+            return
+        self.status.bath_started_at = None
+        self.status.start_qr_seen = False
+        self.status.completion_scanned_at = None
+        self._transition(State.BATH_TIMEOUT, "bath timeout")
+
+    def _clear_bath_context(self) -> None:
+        self.status.start_qr_seen = False
         self.status.bath_started_at = None
         self.status.completion_scanned_at = None
-        self.status.charger_connected_since = None
         self.status.intervention_source = InterventionSource.NONE
-        self._transition(State.MONITORING, "bath complete")
+
+    def _clear_riz_context(self) -> None:
+        self.status.riz_active = False
+        self.status.charger_connected = False
+        self.status.charger_connected_since = None
 
     def start_daily_rest(self) -> bool:
         if self.status.daily_rest_used or self.status.state != State.MONITORING:
@@ -157,7 +202,7 @@ class AstDemo:
         return True
 
     def start_exam(self) -> bool:
-        if self.status.riz_active:
+        if self.status.riz_active or self.status.state not in EXAM_MODE_ENTRY_STATES:
             return False
         self._transition(State.EXAM_MODE, "exam mode")
         return True
@@ -170,7 +215,9 @@ class AstDemo:
         return True
 
     def start_emergency(self) -> None:
-        self.status.riz_active = False
+        self._clear_bath_context()
+        self._clear_riz_context()
+        self.status.grace_until = 0.0
         self._transition(State.EMERGENCY_SAFE_MODE, "emergency safe mode")
 
     def end_emergency(self) -> bool:
@@ -180,6 +227,8 @@ class AstDemo:
         return True
 
     def start_call_safe_mode(self) -> bool:
+        if self.status.state not in CALL_SAFE_MODE_ENTRY_STATES:
+            return False
         now = self.clock.now()
         self.call_uses[:] = [value for value in self.call_uses if now - value <= 3 * 3600]
         self.call_uses.append(now)

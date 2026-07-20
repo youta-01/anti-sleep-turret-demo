@@ -10,6 +10,8 @@
 
 Manual Bathは `MONITORING` から本人が開始します。Start QRとPresence Guardを要求せず、5〜45分の範囲で完了できます。これは自発的な入浴を、強制フローとは異なる方針で同じ状態機械に載せるものです。
 
+If Manual Bath exceeds 45 minutes, it returns directly to `MONITORING` and records `manual bath timed out`. It cannot be restarted with Start QR; the user must invoke Manual Bath again. Forced Bath and Riz instead remain in `BATH_TIMEOUT` and require a new Start QR.
+
 ## Riz
 
 Rizは新しい状態enumではなく、`intervention_source = RIZ` と表示文脈の組み合わせです。スマートフォン起点で `BATH_REQUIRED` を開始し、画面はオレンジ色になります。
