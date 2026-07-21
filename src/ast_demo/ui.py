@@ -50,6 +50,12 @@ class DemoWindow:
         body.pack(fill="both", expand=True)
         controls = ttk.LabelFrame(body, text="合成シナリオ", padding=10)
         controls.pack(side="left", fill="y", padx=(0, 12))
+        ttk.Label(
+            controls,
+            text="各シナリオは初期状態から実行します",
+            justify="left",
+            wraplength=220,
+        ).pack(fill="x", pady=(0, 8))
         for text, scenario in CONTROLS:
             ttk.Button(controls, text=text, command=lambda name=scenario: self.run(name)).pack(fill="x", pady=2)
         ttk.Button(controls, text="Reset", command=self.reset).pack(fill="x", pady=(12, 2))
@@ -64,6 +70,10 @@ class DemoWindow:
         self.run(initial)
 
     def run(self, name: str) -> None:
+        # Scenario buttons are demonstrations, not incremental controls.
+        # Starting each one from a clean state keeps the UI consistent with
+        # the deterministic headless runner and avoids order-dependent results.
+        self.app.reset()
         SCENARIOS[name](self.app)
         self.refresh()
 
