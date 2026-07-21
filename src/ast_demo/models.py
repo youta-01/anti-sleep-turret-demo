@@ -58,6 +58,7 @@ class Status:
     riz_active: bool = False
     bath_started_at: float | None = None
     start_qr_seen: bool = False
+    charger_connected: bool = False
     charger_connected_since: float | None = None
     completion_scanned_at: float | None = None
     grace_until: float = 0.0

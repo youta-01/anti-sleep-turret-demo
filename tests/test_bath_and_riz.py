@@ -133,3 +133,99 @@ def test_riz_completion_requires_hold():
     assert app.complete_qr() == "hold"
     app.clock.advance(9); app.tick(); assert app.status.state == State.BATH_STARTED
     app.clock.advance(1); app.tick(); assert app.status.state == State.MONITORING
+
+
+def test_new_riz_session_does_not_reuse_old_charger_timestamp():
+    app = AstDemo(); app.clock.advance(100)
+    app.status.charger_connected = True
+    app.status.charger_connected_since = 1
+    app.status.start_qr_seen = True
+    app.status.bath_started_at = 2
+    app.status.completion_scanned_at = 3
+    app.status.grace_until = 200
+    app.phone_start_riz()
+    assert not app.status.start_qr_seen
+    assert app.status.bath_started_at is None
+    assert not app.status.charger_connected
+    assert app.status.charger_connected_since is None
+    assert app.status.completion_scanned_at is None
+    assert app.status.grace_until == 0
+
+
+def test_start_qr_plus_stale_charger_timestamp_does_not_start_riz_bath():
+    app = AstDemo(); app.clock.advance(100)
+    app.status.charger_connected = True
+    app.status.charger_connected_since = 1
+    app.phone_start_riz(); app.start_qr(); app.charger(True)
+    assert app.status.state == State.BATH_REQUIRED
+    assert app.status.charger_connected_since == 100
+
+
+def test_charger_reconnect_starts_a_new_stability_interval():
+    app = riz_app(); app.charger(True); app.clock.advance(2); app.charger(False)
+    assert app.start_qr(); app.clock.advance(100); app.charger(True)
+    assert app.status.charger_connected_since == 102
+    app.clock.advance(2.9); app.charger(True)
+    assert app.status.state == State.BATH_REQUIRED
+    app.clock.advance(.1); app.charger(True)
+    assert app.status.state == State.BATH_STARTED
+
+
+def test_riz_completion_requires_current_charger_connection():
+    app = riz_app(); app.charger(True); app.clock.advance(3); app.charger(True); app.clock.advance(480)
+    assert app.complete_qr() == "hold"
+    app.status.charger_connected = False
+    app.clock.advance(10); app.tick()
+    assert app.status.state == State.BATH_STARTED
+
+
+def test_emergency_clears_riz_transient_fields():
+    app = riz_app(); app.charger(True); app.clock.advance(3); app.charger(True); app.clock.advance(480)
+    assert app.complete_qr() == "hold"
+    app.start_emergency()
+    assert app.status.state == State.EMERGENCY_SAFE_MODE
+    assert not app.status.riz_active
+    assert not app.status.start_qr_seen
+    assert app.status.bath_started_at is None
+    assert not app.status.charger_connected
+    assert app.status.charger_connected_since is None
+    assert app.status.completion_scanned_at is None
+    assert app.status.intervention_source == InterventionSource.NONE
+
+
+def test_manual_bath_timeout_returns_to_monitoring():
+    app = AstDemo(); app.start_manual_bath(); app.clock.advance(2701); app.tick()
+    assert app.status.state == State.MONITORING
+    assert app.status.history[-1].reason == "manual bath timed out"
+
+
+def test_manual_bath_timeout_cannot_restart_through_start_qr():
+    app = AstDemo(); app.start_manual_bath(); app.clock.advance(2701); app.tick()
+    assert not app.start_qr()
+    assert app.status.state == State.MONITORING
+
+
+def test_forced_bath_timeout_still_requires_new_start_qr():
+    app = forced_app(); app.start_qr(); app.clock.advance(901); app.tick()
+    assert app.status.state == State.BATH_TIMEOUT
+    assert app.status.bath_started_at is None
+    assert not app.status.start_qr_seen
+    assert app.start_qr()
+    assert app.status.state == State.BATH_STARTED
+
+
+def test_monitoring_invariants_hold_after_every_successful_completion():
+    forced = forced_app(); forced.start_qr(); forced.clock.advance(480); forced.complete_qr()
+    manual = AstDemo(); manual.start_manual_bath(); manual.clock.advance(300); manual.complete_qr()
+    riz = riz_app(); riz.charger(True); riz.clock.advance(3); riz.charger(True); riz.clock.advance(480)
+    riz.complete_qr(); riz.clock.advance(10); riz.tick()
+
+    for app in (forced, manual, riz):
+        assert app.status.state == State.MONITORING
+        assert not app.status.riz_active
+        assert not app.status.start_qr_seen
+        assert app.status.bath_started_at is None
+        assert not app.status.charger_connected
+        assert app.status.charger_connected_since is None
+        assert app.status.completion_scanned_at is None
+        assert app.status.intervention_source == InterventionSource.NONE

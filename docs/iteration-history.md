@@ -28,11 +28,11 @@
 
 ## 4. Return / Recovery experiment and retirement
 
-- **Observed problem:** 入浴後のPC復帰や回復作業まで強制する案は、標準フローを複雑にした。
-- **Human decision:** Return to PCとRecovery Workを現行フローから外した。
+- **Observed change:** 以前の版では、Bath後にReturn to PCとRecovery Workを経由するフローを試した。
+- **Human decision:** 実運用後、Return to PCとRecovery Workを現行の標準フローから外した。
 - **Codex-assisted implementation:** 公開状態enumとUIから除外し、Bath完了後をMONITORINGへ直結した。
 - **Validation:** 廃止状態が公開モデルに存在しないことをテストした。
-- **Remaining limitation:** 非公開プロトタイプには休眠中の互換コードが残る。
+- **Evidence boundary:** 廃止理由は公開資料から確定できる範囲を越えて説明しない。非公開プロトタイプには休眠中の互換コードが残る。
 
 ## 5. Exception modes
 
