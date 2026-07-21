@@ -1,6 +1,6 @@
 # Anti-Sleep Turret (Ast)
 
-CG制作中の日中の寝落ちを作者本人の設計課題とし、眠気リスク検知から入浴介入までを状態遷移として構成した個人用Windowsプロトタイプです。
+CG制作中の日中の寝落ちを自分自身の設計課題とし、眠気リスク検知から入浴介入までを状態遷移として構成した個人用Windowsプロトタイプです。
 
 ![Ast production prototype demonstration](docs/images/production-demo.gif)
 
@@ -14,7 +14,7 @@ CG制作中の日中の寝落ちを作者本人の設計課題とし、眠気リ
 
 ## 私が担ったこと
 
-作者本人が、約4か月の自己管理ログCLLをもとに課題を選び、入浴を中心とする介入方針、段階的な強制力、例外条件、安全優先順位、実機での受け入れ基準を決定しました。ChatGPTは曖昧な要件の仕様化とレビューを、Codexはコーディング、リファクタリング、テスト、CI、Windows向け実装を支援しました。
+私は、約4か月の自己管理ログCLLをもとに課題を選び、入浴を中心とする介入方針、段階的な強制力、例外条件、安全優先順位、実機での受け入れ基準を決定しました。ChatGPTは曖昧な要件の仕様化とレビューを、Codexはコーディング、リファクタリング、テスト、CI、Windows向け実装を支援しました。
 
 ## Quick Start
 
@@ -71,9 +71,7 @@ Ast is a sanitized public simulation of an N=1 Windows prototype that connects d
 
 ## 検証
 
-ローカルテスト: **71 passed**
-
-GitHub ActionsはUbuntu / Windows向けに設定済みです。最新状況は上部のCIバッジから確認できます。
+GitHub Actions（Ubuntu / Windows）で**71 tests passed**を確認しています。
 
 ```powershell
 python -m compileall .
